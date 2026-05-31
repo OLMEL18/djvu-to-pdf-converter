@@ -1,0 +1,90 @@
+# DJVU to PDF Converter
+
+Simple offline DJVU/DJV to image-based PDF converter for Windows first, written in Python with a small CLI and `tkinter` GUI.
+
+The MVP uses local DjVuLibre command-line tools. It does not upload files, does not call cloud services, and does not implement a DJVU decoder from scratch.
+
+## Requirements
+
+- Python 3.11+
+- DjVuLibre installed locally, with `ddjvu` and `djvused` available on `PATH`
+- Python dependencies from `requirements.txt`
+
+On Windows, you can also pass the full path to `ddjvu.exe`. The app will look for `djvused.exe` beside it first, then on `PATH`.
+
+## Install
+
+```powershell
+python -m pip install -r requirements.txt
+```
+
+For tests:
+
+```powershell
+python -m pip install -r requirements-dev.txt
+```
+
+## CLI Usage
+
+```powershell
+python -m src.cli "C:\Books\input.djvu" "C:\Books\output.pdf"
+```
+
+With options:
+
+```powershell
+python -m src.cli "C:\Books\input.djvu" "C:\Books\output.pdf" --quality 90 --dpi 300 --ddjvu-path "C:\Program Files\DjVuLibre\ddjvu.exe"
+```
+
+Options:
+
+- `--quality`: JPEG quality for PDF pages, default `90`
+- `--dpi`: pass a target DPI to `ddjvu`
+- `--scale`: pass a render scale percentage to `ddjvu`
+- `--keep-temp`: keep rendered temporary TIFF files for debugging
+- `--ddjvu-path`: explicit path to `ddjvu.exe`
+
+Use either `--dpi` or `--scale`, not both.
+
+## GUI Usage
+
+```powershell
+python -m src.gui
+```
+
+Choose an input DJVU/DJV file, choose the output PDF path, optionally provide `ddjvu.exe`, then select **Convert**.
+
+## Validation
+
+```powershell
+python -m compileall src
+python -m pytest
+python -m src.cli --help
+python -m src.gui
+```
+
+The GUI command opens a local desktop window and runs fully offline.
+
+## Packaging
+
+Optional Windows `.exe` build with PyInstaller:
+
+```powershell
+python -m pip install pyinstaller
+python -m PyInstaller --noconsole --name djvu-to-pdf-converter src\gui.py
+```
+
+DjVuLibre binaries are not bundled in this MVP. Review DjVuLibre licensing before distributing any bundled copy. For now, users should install DjVuLibre themselves or provide the path to `ddjvu.exe`.
+
+## Notes
+
+- Output PDFs are image-based.
+- Hidden OCR/text layers from DJVU files are not preserved in this MVP.
+- File paths with spaces and Unicode/Cyrillic characters are supported by passing subprocess arguments as arrays.
+
+## TODO
+
+- Add searchable PDF output by extracting OCR/text where available.
+- Add an explicit `djvused` path option if users need separate tool locations.
+- Add cross-platform packaging notes for macOS and Linux.
+- Add integration tests using generated or freely licensed fixture inputs.
