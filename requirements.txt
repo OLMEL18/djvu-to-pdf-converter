@@ -1,2 +1,2 @@
 Pillow>=10.0
-
+img2pdf>=0.6

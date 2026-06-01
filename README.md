@@ -43,8 +43,23 @@ Options:
 - `--scale`: pass a render scale percentage to `ddjvu`
 - `--keep-temp`: keep rendered temporary TIFF files for debugging
 - `--ddjvu-path`: explicit path to `ddjvu.exe`
+- `--render-format`: primary render format, one of `tiff`, `ppm`, or `pnm`; default `tiff`
+- `--fallback-formats`: comma-separated formats to try if a page render fails; default `tiff,ppm,pnm`
+- `--temp-dir`: parent folder for conversion temporary folders, useful when PPM/PNM output is large
 
 Use either `--dpi` or `--scale`, not both.
+
+The default conversion starts with TIFF and automatically falls back to PPM, then PNM, for individual page render failures:
+
+```powershell
+python -m src.cli "input.djvu" "output.pdf" --fallback-formats tiff,ppm,pnm
+```
+
+Emergency direct PPM mode:
+
+```powershell
+python -m src.cli "input.djvu" "output.pdf" --render-format ppm
+```
 
 ## GUI Usage
 
@@ -75,6 +90,30 @@ python -m PyInstaller --noconsole --name djvu-to-pdf-converter src\gui.py
 ```
 
 DjVuLibre binaries are not bundled in this MVP. Review DjVuLibre licensing before distributing any bundled copy. For now, users should install DjVuLibre themselves or provide the path to `ddjvu.exe`.
+
+## Troubleshooting
+
+### TIFFAppendToStrip / Error while flushing tiff file
+
+Some DJVU pages can fail when `ddjvu` writes TIFF output, even when the page itself is readable. The converter now retries failed pages with fallback render formats by default.
+
+Recommended command:
+
+```powershell
+python -m src.cli "input.djvu" "output.pdf" --fallback-formats tiff,ppm,pnm
+```
+
+If TIFF continues to fail or you want to avoid it entirely, start with PPM:
+
+```powershell
+python -m src.cli "input.djvu" "output.pdf" --render-format ppm
+```
+
+For very large files, put temporary images on a drive with enough free space:
+
+```powershell
+python -m src.cli "input.djvu" "output.pdf" --render-format ppm --temp-dir "K:\Library\djvu_temp"
+```
 
 ## Notes
 
