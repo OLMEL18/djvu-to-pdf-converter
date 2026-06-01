@@ -112,12 +112,23 @@ python -m src.cli "input.djvu" "output.pdf" --render-format ppm
 For very large files, put temporary images on a drive with enough free space:
 
 ```powershell
-python -m src.cli "input.djvu" "output.pdf" --render-format ppm --temp-dir "K:\Library\djvu_temp"
+python -m src.cli "input.djvu" "output.pdf" --render-format ppm --temp-dir "D:\Temp\djvu_temp"
+```
+
+Use any local folder with enough free space for `--temp-dir`; PPM/PNM intermediate files can be large.
+
+### ddjvu was not found on PATH
+
+Install DjVuLibre locally and make sure `ddjvu` and `djvused` are available on `PATH`, or pass the full path to `ddjvu.exe`:
+
+```powershell
+python -m src.cli "input.djvu" "output.pdf" --ddjvu-path "C:\Program Files\DjVuLibre\ddjvu.exe"
 ```
 
 ## Notes
 
 - Output PDFs are image-based.
+- Output PDFs can be much larger than the original DJVU, especially when fallback rendering uses PPM/PNM intermediates.
 - Hidden OCR/text layers from DJVU files are not preserved in this MVP.
 - File paths with spaces and Unicode/Cyrillic characters are supported by passing subprocess arguments as arrays.
 
@@ -127,3 +138,7 @@ python -m src.cli "input.djvu" "output.pdf" --render-format ppm --temp-dir "K:\L
 - Add an explicit `djvused` path option if users need separate tool locations.
 - Add cross-platform packaging notes for macOS and Linux.
 - Add integration tests using generated or freely licensed fixture inputs.
+
+## License
+
+MIT License. See `LICENSE`.

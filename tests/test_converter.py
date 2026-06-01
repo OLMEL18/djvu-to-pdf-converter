@@ -150,10 +150,10 @@ def test_cli_parses_new_options() -> None:
             "--fallback-formats",
             "ppm,pnm",
             "--temp-dir",
-            "K:/Library/djvu_temp",
+            "D:/Temp/djvu_temp",
         ]
     )
 
     assert args.render_format == "ppm"
     assert args.fallback_formats == "ppm,pnm"
-    assert args.temp_dir == "K:/Library/djvu_temp"
+    assert args.temp_dir == "D:/Temp/djvu_temp"

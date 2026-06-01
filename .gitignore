@@ -9,3 +9,8 @@ build/
 *.pdf
 *.djvu
 *.djv
+temp/
+tmp/
+*.log
+local_settings.*
+*.local
