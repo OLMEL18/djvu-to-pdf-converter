@@ -5,6 +5,7 @@ import subprocess
 
 import pytest
 
+from src.app_metadata import APP_VERSION
 from src import cli
 from src.converter import (
     ConversionError,
@@ -20,6 +21,10 @@ from src.djvu_tools import DjvuToolError, DjvuTools, build_render_page_command, 
 def test_validate_output_requires_pdf(tmp_path: Path) -> None:
     with pytest.raises(ConversionError, match="pdf"):
         validate_output_path(tmp_path / "book.txt")
+
+
+def test_app_version() -> None:
+    assert APP_VERSION == "0.1.0"
 
 
 def test_validate_options_rejects_dpi_and_scale() -> None:

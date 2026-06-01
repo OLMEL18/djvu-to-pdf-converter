@@ -1,0 +1,10 @@
+APP_NAME = "DJVU to PDF Converter"
+APP_VERSION = "0.1.0"
+COMPANY_NAME = "Keep It Simple Software Studio"
+FILE_DESCRIPTION = "DJVU to PDF Converter"
+INTERNAL_NAME = "djvu-to-pdf-converter"
+LEGAL_COPYRIGHT = "© 2026 Keep It Simple Software Studio"
+ORIGINAL_FILENAME = "djvu-to-pdf-converter.exe"
+PRODUCT_NAME = "DJVU to PDF Converter"
+PRODUCT_VERSION = "0.1.0"
+

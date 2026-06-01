@@ -86,8 +86,10 @@ Optional Windows `.exe` build with PyInstaller:
 
 ```powershell
 python -m pip install pyinstaller
-python -m PyInstaller --noconsole --name djvu-to-pdf-converter src\gui.py
+python -m PyInstaller --noconsole --name djvu-to-pdf-converter --version-file packaging\windows\version_info.txt src\gui.py
 ```
+
+Windows executable metadata is prepared in `packaging/windows/version_info.txt` for future PyInstaller builds. This repository does not include a ready-built EXE.
 
 DjVuLibre binaries are not bundled in this MVP. Review DjVuLibre licensing before distributing any bundled copy. For now, users should install DjVuLibre themselves or provide the path to `ddjvu.exe`.
 

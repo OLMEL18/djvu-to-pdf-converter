@@ -3,12 +3,14 @@ from __future__ import annotations
 import argparse
 import sys
 
+from .app_metadata import APP_NAME, APP_VERSION
 from .converter import ConversionError, ConversionOptions, convert_djvu_to_pdf, parse_fallback_formats
 from .djvu_tools import SUPPORTED_RENDER_FORMATS
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Convert a DJVU/DJV file to an image-based PDF.")
+    parser.add_argument("--version", action="version", version=f"{APP_NAME} {APP_VERSION}")
     parser.add_argument("input", help="Input .djvu or .djv file")
     parser.add_argument("output", help="Output .pdf file")
     parser.add_argument("--quality", type=int, default=90, help="JPEG quality for PDF pages (1-100, default: 90)")
