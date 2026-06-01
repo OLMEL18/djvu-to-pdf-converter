@@ -7,9 +7,18 @@ import subprocess
 import tempfile
 from typing import Callable
 
+import img2pdf
 from PIL import Image, ImageSequence
 
-from .djvu_tools import DjvuToolError, Runner, discover_tools, get_page_count, render_page
+from .djvu_tools import (
+    SUPPORTED_RENDER_FORMATS,
+    DjvuToolError,
+    RenderFormat,
+    Runner,
+    discover_tools,
+    get_page_count,
+    render_page,
+)
 
 
 class ConversionError(RuntimeError):
@@ -26,6 +35,9 @@ class ConversionOptions:
     scale: int | None = None
     keep_temp: bool = False
     ddjvu_path: str | Path | None = None
+    render_format: RenderFormat = "tiff"
+    fallback_formats: tuple[RenderFormat, ...] = SUPPORTED_RENDER_FORMATS
+    temp_dir: str | Path | None = None
 
 
 def validate_input_path(input_path: str | Path) -> Path:
@@ -56,6 +68,15 @@ def validate_options(options: ConversionOptions) -> None:
         raise ConversionError("--scale must be a positive integer.")
     if options.dpi is not None and options.scale is not None:
         raise ConversionError("Use either --dpi or --scale, not both.")
+    _validate_render_format(options.render_format, "--render-format")
+    if not options.fallback_formats:
+        raise ConversionError("--fallback-formats must include at least one format.")
+    for render_format in options.fallback_formats:
+        _validate_render_format(render_format, "--fallback-formats")
+    if options.temp_dir is not None:
+        temp_root = Path(options.temp_dir).expanduser()
+        if temp_root.exists() and not temp_root.is_dir():
+            raise ConversionError(f"Temporary path is not a folder: {temp_root}")
 
 
 def convert_djvu_to_pdf(
@@ -76,26 +97,29 @@ def convert_djvu_to_pdf(
     except DjvuToolError as exc:
         raise ConversionError(str(exc)) from exc
 
-    temp_dir = Path(tempfile.mkdtemp(prefix="djvu_to_pdf_"))
+    temp_root = _prepare_temp_root(options.temp_dir)
+    temp_dir = Path(tempfile.mkdtemp(prefix="djvu_to_pdf_", dir=temp_root))
     rendered_pages: list[Path] = []
     try:
         page_count = get_page_count(input_file, tools.djvused, runner=runner)
         _report(progress, 0, page_count, f"Found {page_count} page(s).")
+        render_formats = _ordered_render_formats(options)
 
         for page_number in range(1, page_count + 1):
-            image_path = temp_dir / f"page_{page_number:06d}.tif"
             _report(progress, page_number - 1, page_count, f"Rendering page {page_number}...")
-            render_page(
+            image_path, used_format = _render_page_with_fallback(
                 input_file,
-                image_path,
                 page_number,
+                temp_dir,
                 tools.ddjvu,
-                dpi=options.dpi,
-                scale=options.scale,
+                render_formats,
+                options,
+                progress=progress,
+                page_count=page_count,
                 runner=runner,
             )
             rendered_pages.append(image_path)
-            _report(progress, page_number, page_count, f"Rendered page {page_number}.")
+            _report(progress, page_number, page_count, f"Rendered page {page_number} as {used_format.upper()}.")
 
         _report(progress, page_count, page_count, "Assembling PDF...")
         assemble_pdf(rendered_pages, output_file, quality=options.quality, dpi=options.dpi)
@@ -114,29 +138,116 @@ def assemble_pdf(image_paths: list[Path], output_file: Path, *, quality: int, dp
     if not image_paths:
         raise ConversionError("No rendered pages were produced.")
 
-    images: list[Image.Image] = []
+    jpeg_dir = Path(tempfile.mkdtemp(prefix="pdf_pages_", dir=image_paths[0].parent))
+    jpeg_pages: list[Path] = []
     try:
         for image_path in image_paths:
             with Image.open(image_path) as source:
-                # Copy frames so Pillow can close the temporary TIFF files before PDF writing.
                 for frame in ImageSequence.Iterator(source):
-                    images.append(frame.convert("RGB").copy())
+                    page_number = len(jpeg_pages) + 1
+                    jpeg_path = jpeg_dir / f"page_{page_number:06d}.jpg"
+                    page = frame.convert("RGB")
+                    try:
+                        save_kwargs: dict[str, object] = {"quality": quality, "optimize": True}
+                        if dpi is not None:
+                            save_kwargs["dpi"] = (dpi, dpi)
+                        page.save(jpeg_path, "JPEG", **save_kwargs)
+                    finally:
+                        page.close()
+                    jpeg_pages.append(jpeg_path)
 
-        first, rest = images[0], images[1:]
-        save_kwargs: dict[str, object] = {
-            "save_all": True,
-            "append_images": rest,
-            "quality": quality,
-        }
-        if dpi is not None:
-            save_kwargs["resolution"] = float(dpi)
-        first.save(output_file, "PDF", **save_kwargs)
+        with output_file.open("wb") as pdf_file:
+            img2pdf.convert([str(path) for path in jpeg_pages], outputstream=pdf_file)
     finally:
-        for image in images:
-            image.close()
+        shutil.rmtree(jpeg_dir, ignore_errors=True)
 
 
 def _report(progress: ProgressCallback | None, current: int, total: int, message: str) -> None:
     if progress:
         progress(current, total, message)
 
+
+def _validate_render_format(render_format: str, option_name: str) -> None:
+    if render_format not in SUPPORTED_RENDER_FORMATS:
+        allowed = ", ".join(SUPPORTED_RENDER_FORMATS)
+        raise ConversionError(f"{option_name} must be one of: {allowed}.")
+
+
+def parse_fallback_formats(value: str) -> tuple[RenderFormat, ...]:
+    formats = tuple(part.strip().lower() for part in value.split(",") if part.strip())
+    if not formats:
+        raise ConversionError("--fallback-formats must include at least one format.")
+    for render_format in formats:
+        _validate_render_format(render_format, "--fallback-formats")
+    return formats
+
+
+def _ordered_render_formats(options: ConversionOptions) -> tuple[RenderFormat, ...]:
+    formats: list[RenderFormat] = [options.render_format]
+    formats.extend(render_format for render_format in options.fallback_formats if render_format not in formats)
+    return tuple(formats)
+
+
+def _render_page_with_fallback(
+    input_file: Path,
+    page_number: int,
+    temp_dir: Path,
+    ddjvu: Path,
+    render_formats: tuple[RenderFormat, ...],
+    options: ConversionOptions,
+    *,
+    progress: ProgressCallback | None,
+    page_count: int,
+    runner: Runner,
+) -> tuple[Path, RenderFormat]:
+    failures: list[tuple[RenderFormat, str]] = []
+
+    for index, render_format in enumerate(render_formats):
+        image_path = temp_dir / f"page_{page_number:06d}.{_extension_for_format(render_format)}"
+        try:
+            render_page(
+                input_file,
+                image_path,
+                page_number,
+                ddjvu,
+                render_format=render_format,
+                dpi=options.dpi,
+                scale=options.scale,
+                runner=runner,
+            )
+            return image_path, render_format
+        except DjvuToolError as exc:
+            failures.append((render_format, str(exc)))
+            if index < len(render_formats) - 1:
+                next_format = render_formats[index + 1]
+                _report(
+                    progress,
+                    page_number,
+                    page_count,
+                    f"{render_format.upper()} render failed, trying {next_format.upper()}...",
+                )
+                continue
+            attempted = ", ".join(render_format.upper() for render_format, _ in failures)
+            details = "\n".join(f"- {render_format.upper()}: {message}" for render_format, message in failures)
+            raise DjvuToolError(
+                f"Failed to render page {page_number}. Attempted formats: {attempted}.\n{details}"
+            ) from exc
+
+    raise DjvuToolError(f"Failed to render page {page_number}. No render formats were attempted.")
+
+
+def _extension_for_format(render_format: RenderFormat) -> str:
+    return "tif" if render_format == "tiff" else render_format
+
+
+def _prepare_temp_root(temp_dir: str | Path | None) -> Path | None:
+    if temp_dir is None:
+        return None
+    temp_root = Path(temp_dir).expanduser()
+    try:
+        temp_root.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise ConversionError(f"Could not create temporary folder: {temp_root}") from exc
+    if not temp_root.is_dir():
+        raise ConversionError(f"Temporary path is not a folder: {temp_root}")
+    return temp_root

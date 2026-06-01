@@ -6,13 +6,14 @@ import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
+from .app_metadata import APP_NAME
 from .converter import ConversionError, ConversionOptions, convert_djvu_to_pdf
 
 
 class ConverterApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
-        self.title("DJVU to PDF Converter")
+        self.title(APP_NAME)
         self.geometry("720x460")
         self.minsize(620, 380)
 
@@ -157,4 +158,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

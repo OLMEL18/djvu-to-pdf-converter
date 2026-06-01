@@ -12,6 +12,8 @@ class DjvuToolError(RuntimeError):
 
 
 Runner = Callable[..., subprocess.CompletedProcess[str]]
+RenderFormat = str
+SUPPORTED_RENDER_FORMATS = ("tiff", "ppm", "pnm")
 
 
 @dataclass(frozen=True)
@@ -58,12 +60,13 @@ def build_render_page_command(
     output_file: Path,
     page_number: int,
     *,
+    render_format: RenderFormat = "tiff",
     dpi: int | None = None,
     scale: int | None = None,
 ) -> list[str]:
     command = [
         str(ddjvu),
-        "-format=tiff",
+        f"-format={render_format}",
         f"-page={page_number}",
     ]
     if dpi is not None:
@@ -120,6 +123,7 @@ def render_page(
     page_number: int,
     ddjvu: Path,
     *,
+    render_format: RenderFormat = "tiff",
     dpi: int | None = None,
     scale: int | None = None,
     runner: Runner = subprocess.run,
@@ -129,11 +133,11 @@ def render_page(
         input_file,
         output_file,
         page_number,
+        render_format=render_format,
         dpi=dpi,
         scale=scale,
     )
     try:
         run_command(command, runner=runner)
     except DjvuToolError as exc:
-        raise DjvuToolError(f"Failed to render page {page_number}: {exc}") from exc
-
+        raise DjvuToolError(f"Failed to render page {page_number} as {render_format.upper()}: {exc}") from exc
