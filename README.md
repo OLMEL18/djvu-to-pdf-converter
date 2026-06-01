@@ -67,7 +67,52 @@ python -m src.cli "input.djvu" "output.pdf" --render-format ppm
 python -m src.gui
 ```
 
-Choose an input DJVU/DJV file, choose the output PDF path, optionally provide `ddjvu.exe`, then select **Convert**.
+Choose an input DJVU/DJV file, review the output PDF path, confirm or select `ddjvu.exe`, then select **Convert**.
+
+The input file picker filters DJVU files (`*.djvu`, `*.djv`). When you select an input file, the GUI automatically fills the output path with the same folder and base filename, changing only the extension to `.pdf`.
+
+Example:
+
+```text
+K:\Library\melashchenko.djvu
+K:\Library\melashchenko.pdf
+```
+
+The output PDF path is editable. Use the output **Browse...** button to save somewhere else. If the output PDF already exists, the GUI asks before overwriting it.
+
+The GUI shows conversion log output and page-by-page progress when that information is available. Conversion runs in the background, so the window should remain responsive while pages render.
+
+### ddjvu detection in the GUI
+
+On startup, the GUI looks for `ddjvu.exe` in this order:
+
+1. The saved path from user settings.
+2. `ddjvu` on `PATH`.
+3. Common Windows DjVuLibre install paths:
+   - `C:\Program Files (x86)\DjVuLibre\ddjvu.exe`
+   - `C:\Program Files\DjVuLibre\ddjvu.exe`
+
+If found, the GUI shows:
+
+```text
+ddjvu found: <path>
+```
+
+If not found, it shows:
+
+```text
+ddjvu.exe was not found. Please install DjVuLibre or select ddjvu.exe manually.
+```
+
+Use the `ddjvu.exe` **Browse...** button to select `ddjvu.exe` manually. The selected path is saved for future launches.
+
+GUI settings are stored in:
+
+```text
+%APPDATA%\DjvuToPdfConverter\settings.json
+```
+
+The settings file stores the selected `ddjvu_path`. It does not store private input or output file paths by default.
 
 ## Validation
 
@@ -126,6 +171,15 @@ Install DjVuLibre locally and make sure `ddjvu` and `djvused` are available on `
 ```powershell
 python -m src.cli "input.djvu" "output.pdf" --ddjvu-path "C:\Program Files\DjVuLibre\ddjvu.exe"
 ```
+
+In the GUI, you can also select `ddjvu.exe` manually with the `ddjvu.exe` **Browse...** button. If the GUI says `ddjvu.exe was not found`, install DjVuLibre or select one of the typical Windows locations if it exists:
+
+```text
+C:\Program Files (x86)\DjVuLibre\ddjvu.exe
+C:\Program Files\DjVuLibre\ddjvu.exe
+```
+
+If you selected the wrong executable, choose the correct `ddjvu.exe` again. The saved GUI path lives in `%APPDATA%\DjvuToPdfConverter\settings.json`.
 
 ## Notes
 
