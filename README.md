@@ -127,16 +127,50 @@ The GUI command opens a local desktop window and runs fully offline.
 
 ## Packaging
 
-Optional Windows `.exe` build with PyInstaller:
+### Windows executable builds
+
+Install runtime and development dependencies:
 
 ```powershell
-python -m pip install pyinstaller
-python -m PyInstaller --noconsole --name djvu-to-pdf-converter --version-file packaging\windows\version_info.txt src\gui.py
+python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
 ```
 
-Windows executable metadata is prepared in `packaging/windows/version_info.txt` for future PyInstaller builds. This repository does not include a ready-built EXE.
+Onedir build:
+
+```powershell
+packaging\windows\build_exe.bat
+```
+
+Output:
+
+```text
+dist\djvu-to-pdf-converter\djvu-to-pdf-converter.exe
+```
+
+This mode creates a folder with the EXE and helper files.
+
+Onefile build:
+
+```powershell
+packaging\windows\build_onefile_exe.bat
+```
+
+Output:
+
+```text
+dist\djvu-to-pdf-converter-0.1.0-win64.exe
+```
+
+This mode creates a single downloadable EXE file. Startup may be slower because PyInstaller extracts temporary files at launch. For public downloads, the onefile EXE is the recommended artifact.
+
+Both PyInstaller builds use `packaging/windows/version_info.txt` for Windows executable metadata and create windowed GUI executables, so Python is not required on the target machine after the build.
 
 DjVuLibre binaries are not bundled in this MVP. Review DjVuLibre licensing before distributing any bundled copy. For now, users should install DjVuLibre themselves or provide the path to `ddjvu.exe`.
+
+The packaged GUI detects `ddjvu.exe` the same way as the source GUI: saved path, `PATH`, then common Windows DjVuLibre install locations.
+
+Generated EXE and build artifacts under `dist/`, `build/`, and `*.spec` are intentionally not committed.
 
 ## Troubleshooting
 
